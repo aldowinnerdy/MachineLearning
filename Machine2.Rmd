@@ -1,0 +1,84 @@
+---
+title: "Quantified Self-movement Data Analysis"
+output: 
+  html_document:
+    keep_md: true
+---
+
+#### *Fernaldo R. Winnerdy*
+#### *28-Sep-2018*
+
+The project is about predicting the forms of exercise based on the measurements of accelerometer on 6 different subjects. The test subjects were to performed belt, forearm, arm, and dumbell exrecises in a correct form and four different commonly used wrong forms. Base on the data, we try to predict the forms that a person do.
+
+### Data import
+First, we import the data to R (data were downloaded beforehand) and load the required library.
+
+```{r import}
+library(caret)
+library(rpart)
+setwd('/home/fernaldo/Projects/Others/Programming/R-specialization/08-Practical_machine_learning/Week-04')
+training <- read.csv('pml-training.csv')
+testing <- read.csv('pml-testing.csv')
+```
+
+### Cleaning data
+
+Here, we clean the data (both training and testing) such that it includes only the variables from the accelerometer, as well as removing the variables with NA.
+
+```{r cleaning}
+accel_index <- grep(pattern = 'accel', names(training))
+set_training <- training[, c(accel_index, 160)]
+set_training <- set_training[, colSums(is.na(set_training)) == 0]
+set_testing <- testing[, c(accel_index, 160)]
+set_testing <- set_testing[, colSums(is.na(set_testing)) == 0]
+```
+
+We end up with only 17 variables in both training and testing set
+
+### Cross validation separation
+
+Since we need out of sample error estimate using cross-validation, we need to further split the training set into 2, 70% into a training set and 30% into a validation set.
+
+```{r split}
+inTrain <- createDataPartition(y = set_training$classe, p=0.7, list=FALSE)
+tra <- set_training[inTrain, ]
+val <- set_training[-inTrain, ]
+```
+
+For cross validation, we separate the data into k=5 folds.
+
+```{r cross}
+Control <- trainControl(method = "cv", number = 5)
+```
+
+### Model fitting
+
+Random forest model is chosen. Accuracy of this model is computed based on the k-fold cross validation method.
+
+```{r model, cache=TRUE}
+fit <- train(classe ~ ., method="rf", data = tra, trControl = Control)
+fit$resample
+confusionMatrix.train(fit)
+```
+
+The average accuracy is ~94% based on the validation technique that we used.  
+
+### Cross Validation accuracy
+
+The out of sample accuracy (using validation data):
+
+```{r validate}
+confusionMatrix(predict(fit, val), val$classe)
+```
+
+Given 98.5% accuracy of the prediction using the validation set, the expected out of sample error is ~2.5%.
+
+### Test result
+The test prediction results are as follows
+
+```{r result}
+result <- predict(fit, set_testing)
+result
+```
+
+The above results were used to predict the classe variables of the testing set in the following project quiz. 
